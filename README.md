@@ -27,7 +27,9 @@ Windows 快速模式下，只框住画面底部的字幕、不框上方水印，
 
 本仓库的 `main` 分支未修改 GUI、默认配置、依赖清单或 VSF 参数。本机试过的 CPU／oneDNN 规避方案和调试参数没有提交到本仓库的 `main` 分支。
 
-## Windows 运行踩坑
+## 目前发现的其他问题及相应解决方案
+
+以下问题和解决方案来自 Windows 环境下的测试；不代表这些问题都已在本仓库中修复。
 
 - **CPU / oneDNN：** 本机用 PaddlePaddle 3.3.1 CPU 版开启 oneDNN（`enable_mkldnn=True`）时，OCR 推理触发了 [Paddle #77340](https://github.com/PaddlePaddle/Paddle/issues/77340) 的 `ConvertPirAttribute2RuntimeAttribute` 错误。用 PP-OCRv5 mobile 单帧验证过两种规避方式：关闭 oneDNN，或在独立环境用 `paddlepaddle==3.2.2` 保留 oneDNN 加速。两者都不是本仓库的 `main` 分支的默认配置；CPU 整集提取未做回归。
 - **NVIDIA GPU：** 有 NVIDIA 显卡、勾选「硬件加速」，不代表 CPU 版 Paddle 会使用 GPU。按[上游安装说明](https://github.com/YaoFANGUK/video-subtitle-extractor#readme)和 [Paddle 官方安装指南](https://www.paddlepaddle.org.cn/install/quick)选与驱动、Python 和系统兼容的 `paddlepaddle-gpu`，按所选包的要求安装或补齐 CUDA／cuDNN 运行库。建议新建环境，不在同一环境混装 CPU 和 GPU 版 Paddle。`nvidia-smi` 显示的 CUDA 版本是驱动支持的上限，不代表对应运行库已安装；也不必在 wheel 已提供所需运行库时重复安装完整 Toolkit。
