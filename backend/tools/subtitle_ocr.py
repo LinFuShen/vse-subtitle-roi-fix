@@ -26,7 +26,18 @@ def extract_subtitles(data, text_recogniser, img, raw_subtitles,
     rec_res = rec_res_arg
     # 如果没有检测结果，则获取检测结果
     if dt_box is None or rec_res is None:
-        dt_box, rec_res = text_recogniser.predict(img)
+        if sub_area is not None:
+            height, width = img.shape[:2]
+            x0 = max(0, int(sub_area.xmin))
+            y0 = max(0, int(sub_area.ymin))
+            x1 = min(width, int(sub_area.xmax))
+            y1 = min(height, int(sub_area.ymax))
+            if x1 <= x0 or y1 <= y0:
+                raise ValueError(f'Invalid subtitle ROI: {(x0, y0, x1, y1)} for {(width, height)}')
+            dt_box, rec_res = text_recogniser.predict(img[y0:y1, x0:x1].copy())
+            dt_box = [[(x + x0, y + y0) for x, y in box] for box in dt_box]
+        else:
+            dt_box, rec_res = text_recogniser.predict(img)
         # rec_res格式为： ("hello", 0.997)
     # 获取文本坐标
     coordinates = get_coordinates(dt_box)
@@ -167,7 +178,7 @@ def ocr_task_consumer(ocr_queue, raw_subtitle_path, sub_area, video_path, option
                 raw_subtitle_file.write(line)
 
 
-def ocr_task_producer(ocr_queue, task_queue, progress_queue, video_path, raw_subtitle_path):
+def ocr_task_producer(ocr_queue, task_queue, progress_queue, video_path, raw_subtitle_path, sub_area=None):
     """
     生产者：负责生产用于OCR识别的数据，将需要进行ocr识别的数据加入ocr_queue中
     :param ocr_queue (current_frame_no当前帧帧号, frame 视频帧, dt_box检测框, rec_res识别结果)
@@ -207,7 +218,8 @@ def ocr_task_producer(ocr_queue, task_queue, progress_queue, video_path, raw_sub
             if ret:
                 frame_count += 1
                 # 根据默认字幕位置，则对视频帧进行裁剪，裁剪后处理
-                if default_subtitle_area is not None:
+                # Explicit ROI (and cached boxes) use original-frame coordinates.
+                if sub_area is None and default_subtitle_area is not None:
                     frame = frame_preprocess(default_subtitle_area, frame)
                 # print(f"current_frame_no: {current_frame_no}")
                 ocr_queue.put((current_frame_no, frame, dt_box, rec_res))
@@ -234,7 +246,7 @@ def subtitle_extract_handler(task_queue, progress_queue, video_path, raw_subtitl
     ocr_queue = queue.Queue(20)
     # 创建一个OCR事件生产者线程
     ocr_event_producer_thread = Thread(target=ocr_task_producer,
-                                       args=(ocr_queue, task_queue, progress_queue, video_path, raw_subtitle_path,),
+                                       args=(ocr_queue, task_queue, progress_queue, video_path, raw_subtitle_path, sub_area,),
                                        daemon=True)
     # 创建一个OCR事件消费者提取线程
     ocr_event_consumer_thread = Thread(target=ocr_task_consumer,

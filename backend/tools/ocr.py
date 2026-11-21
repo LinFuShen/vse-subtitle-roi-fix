@@ -31,7 +31,8 @@ class OcrRecogniser:
             return [], []
 
         res = results[0]
-        dt_polys = res.get('dt_polys', [])
+        # Use the polygons paired with rec_texts and rec_scores.
+        dt_polys = res.get('rec_polys', [])
         rec_texts = res.get('rec_texts', [])
         rec_scores = res.get('rec_scores', [])
 
